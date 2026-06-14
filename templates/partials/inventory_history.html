@@ -1,0 +1,109 @@
+{# ── Inventory History ────────────────────────────────────────── #}
+<div class="section-title">
+  <i class="bi bi-graph-up-arrow"></i>
+  {{ office.name }} — Inventory History
+</div>
+
+{# ── Chart ────────────────────────────────────────────────────── #}
+<div class="chart-container">
+  <canvas id="inventoryChart"></canvas>
+</div>
+
+{# ── Recent Changes Table ─────────────────────────────────────── #}
+<div class="section-title" style="font-size:0.9rem;margin-top:0.5rem">
+  Recent Changes
+</div>
+
+{% if recent_logs %}
+<div class="card-dark" style="overflow:hidden">
+  <table class="table-dark-custom">
+    <thead>
+      <tr>
+        <th>Timestamp</th>
+        <th>Part</th>
+        <th>Type</th>
+        <th>Amount</th>
+        <th>After</th>
+        <th>Note</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in recent_logs %}
+      <tr>
+        <td style="color:var(--text-secondary);white-space:nowrap">
+          {{ log.timestamp.strftime('%Y-%m-%d %H:%M') }}
+        </td>
+        <td><strong>{{ log.part_name }}</strong></td>
+        <td>
+          <span class="badge-change badge-{{ log.change_type }}">{{ log.change_type.replace('_',' ') }}</span>
+        </td>
+        <td>{{ fmt(log.amount) }}</td>
+        <td style="color:var(--text-secondary)">
+          {% if log.resulting_quantity is not none %}{{ fmt(log.resulting_quantity) }}{% else %}—{% endif %}
+        </td>
+        <td style="color:var(--text-muted);font-size:0.8rem">{{ log.note or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="mt-2" style="font-size:0.76rem;color:var(--text-muted)">Showing last 50 inventory changes.</p>
+{% else %}
+<div class="empty-state">
+  <i class="bi bi-inbox"></i>
+  No inventory changes recorded yet.
+</div>
+{% endif %}
+
+<script>
+(function() {
+  const datasets = {{ chart_datasets | tojson }};
+
+  const ctx = document.getElementById('inventoryChart');
+  if (!ctx) return;
+
+  new Chart(ctx, {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 400 },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            color: '#888',
+            font: { size: 11 },
+            boxWidth: 12,
+            padding: 12,
+            usePointStyle: true,
+          }
+        },
+        tooltip: {
+          backgroundColor: '#1e1e1e',
+          borderColor: '#333',
+          borderWidth: 1,
+          titleColor: '#e8e8e8',
+          bodyColor: '#aaa',
+          padding: 10,
+        }
+      },
+      scales: {
+        x: {
+          type: 'time',
+          time: { unit: 'day', displayFormats: { day: 'MMM d' } },
+          grid:  { color: '#222' },
+          ticks: { color: '#555', maxTicksLimit: 8 },
+        },
+        y: {
+          beginAtZero: true,
+          grid:  { color: '#222' },
+          ticks: { color: '#555' },
+        }
+      }
+    }
+  });
+})();
+</script>

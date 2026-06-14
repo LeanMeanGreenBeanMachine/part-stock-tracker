@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% block title %}{{ office.name }} — Vulcan Stock{% endblock %}
+
+{% block content %}
+<div class="app-wrapper">
+
+  {# ── Top Bar ──────────────────────────────────────────────── #}
+  <div class="topbar">
+    <span class="topbar-brand">
+      <i class="bi bi-lightning-charge-fill"></i> Vulcan Stock
+    </span>
+
+    <div class="office-tabs" id="officeTabs">
+      {% for o in offices %}
+      <button
+        class="office-tab {% if o.id == office.id %}active{% endif %}"
+        data-office-id="{{ o.id }}"
+        onclick="switchOffice({{ o.id }})">
+        {{ o.name }}
+      </button>
+      {% endfor %}
+    </div>
+
+    <div class="topbar-spacer"></div>
+    <a href="{{ url_for('logout') }}" class="btn-logout">
+      <i class="bi bi-box-arrow-right"></i> Logout
+    </a>
+  </div>
+
+  {# ── Body Row ─────────────────────────────────────────────── #}
+  <div class="body-row">
+
+    {# ── Sidebar ────────────────────────────────────────────── #}
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-label">Navigation</div>
+
+      {% set nav = [
+        ('main_menu',         'bi-house-fill',       'Main Menu'),
+        ('update_inventory',  'bi-box-seam-fill',    'Update Inventory'),
+        ('product_history',   'bi-clock-history',    'Product History'),
+        ('inventory_history', 'bi-graph-up-arrow',   'Inventory History'),
+        ('settings',          'bi-gear-fill',        'Settings'),
+      ] %}
+
+      {% for sec_id, icon, label in nav %}
+      <a
+        class="sidebar-link {% if section == sec_id %}active{% endif %}"
+        data-section="{{ sec_id }}"
+        onclick="loadSection('{{ sec_id }}'); return false;"
+        href="#">
+        <i class="bi {{ icon }}"></i>
+        <span>{{ label }}</span>
+      </a>
+      {% endfor %}
+    </nav>
+
+    {# ── Main Content ─────────────────────────────────────────── #}
+    <div id="content">
+      {# Inline-include the initial section so the first page load is immediate #}
+      {% if section == 'main_menu' %}
+        {% include 'partials/main_menu.html' %}
+      {% elif section == 'update_inventory' %}
+        {% include 'partials/update_inventory.html' %}
+      {% elif section == 'product_history' %}
+        {% include 'partials/product_history.html' %}
+      {% elif section == 'inventory_history' %}
+        {% include 'partials/inventory_history.html' %}
+      {% elif section == 'settings' %}
+        {% include 'partials/settings.html' %}
+      {% endif %}
+    </div>
+
+  </div>{# /body-row #}
+</div>{# /app-wrapper #}
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+// ── State ─────────────────────────────────────────────────────
+let currentOfficeId = {{ office.id }};
+let currentSection  = '{{ section }}';
+
+// ── Section Loading ───────────────────────────────────────────
+function loadSection(section) {
+  currentSection = section;
+
+  // Update sidebar active state
+  document.querySelectorAll('.sidebar-link').forEach(el => {
+    el.classList.toggle('active', el.dataset.section === section);
+  });
+
+  const url = `/partials/${section}?office_id=${currentOfficeId}`;
+  fetchContent(url);
+  history.pushState({}, '', `/dashboard?office_id=${currentOfficeId}&section=${section}`);
+}
+
+// ── Office Switching ──────────────────────────────────────────
+function switchOffice(officeId) {
+  currentOfficeId = officeId;
+
+  // Update tab active state
+  document.querySelectorAll('.office-tab').forEach(el => {
+    el.classList.toggle('active', parseInt(el.dataset.officeId) === officeId);
+  });
+
+  const url = `/partials/${currentSection}?office_id=${officeId}`;
+  fetchContent(url);
+  history.pushState({}, '', `/dashboard?office_id=${officeId}&section=${currentSection}`);
+}
+
+// ── Fetch + Inject ────────────────────────────────────────────
+function fetchContent(url) {
+  const content = document.getElementById('content');
+  content.style.opacity = '0.4';
+
+  fetch(url, { credentials: 'same-origin' })
+    .then(r => {
+      if (r.status === 401 || r.redirected) { location.href = '/login'; return null; }
+      return r.text();
+    })
+    .then(html => {
+      if (!html) return;
+      content.innerHTML = html;
+      content.style.opacity = '1';
+      // Execute any <script> tags injected by the partial (e.g. Chart.js init)
+      content.querySelectorAll('script').forEach(oldScript => {
+        const newScript = document.createElement('script');
+        newScript.textContent = oldScript.textContent;
+        oldScript.parentNode.replaceChild(newScript, oldScript);
+      });
+    })
+    .catch(() => {
+      content.style.opacity = '1';
+    });
+}
+
+// ── Browser back/forward ──────────────────────────────────────
+window.addEventListener('popstate', () => {
+  const params  = new URLSearchParams(window.location.search);
+  const officeId = parseInt(params.get('office_id') || '1');
+  const section  = params.get('section') || 'main_menu';
+  currentOfficeId = officeId;
+  currentSection  = section;
+
+  document.querySelectorAll('.office-tab').forEach(el => {
+    el.classList.toggle('active', parseInt(el.dataset.officeId) === officeId);
+  });
+  document.querySelectorAll('.sidebar-link').forEach(el => {
+    el.classList.toggle('active', el.dataset.section === section);
+  });
+  fetchContent(`/partials/${section}?office_id=${officeId}`);
+});
+
+// ── Content transition style ──────────────────────────────────
+document.getElementById('content').style.transition = 'opacity 0.15s ease';
+</script>
+{% endblock %}

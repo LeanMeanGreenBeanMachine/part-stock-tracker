@@ -1,0 +1,113 @@
+{# ── Main Menu: Product list + Inventory sidebar ─────────────── #}
+<div class="section-title">
+  <i class="bi bi-house-fill"></i>
+  {{ office.name }} — Products
+</div>
+
+<div class="main-menu-layout">
+
+  {# ── Left: Product Cards ──────────────────────────────────── #}
+  <div class="product-list">
+
+    {% for name, data in product_data.items() %}
+    {% set can_build = data.buildable >= 1 %}
+
+    <div class="product-row">
+
+      {# Product image #}
+      <img
+        src="{{ url_for('static', filename='images/products/' + data.image) }}"
+        alt="{{ name }}"
+        class="product-img"
+        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+      />
+      <div class="product-img-placeholder" style="display:none">
+        <i class="bi bi-box"></i>
+      </div>
+
+      {# BOM info #}
+      <div class="product-info">
+        <div class="product-name">{{ name }}</div>
+
+        <div class="bom-label">Used Parts</div>
+        <div class="bom-items">
+          {% for part_name, qty in data.used_parts.items() %}
+            <span class="bom-qty">{{ fmt(qty) }}</span>&thinsp;{{ part_name }}{% if not loop.last %},&nbsp;{% endif %}
+          {% endfor %}
+        </div>
+
+        <div class="bom-label" style="margin-top:0.3rem">Contains</div>
+        <div class="bom-items" style="color:var(--text-muted)">
+          {{ data.contains | join(', ') }}
+        </div>
+      </div>
+
+      {# Log Order action #}
+      <div class="product-action">
+        <div class="buildable-badge">
+          Can build: <span class="buildable-count">{{ data.buildable }}</span>
+        </div>
+
+        {% if can_build %}
+        <form method="POST" action="{{ url_for('log_order') }}" style="margin:0">
+          <input type="hidden" name="office_id"    value="{{ office.id }}" />
+          <input type="hidden" name="product_name" value="{{ name }}" />
+          <button type="submit" class="btn-neon">
+            <i class="bi bi-plus-circle-fill me-1"></i>Log Order
+          </button>
+        </form>
+        {% else %}
+        <button
+          class="btn-neon disabled"
+          disabled
+          title="Not enough stock. Bottleneck: {{ data.bottleneck or 'N/A' }}"
+          data-bs-toggle="tooltip"
+          data-bs-placement="left">
+          <i class="bi bi-slash-circle me-1"></i>Log Order
+        </button>
+        <div style="font-size:0.72rem;color:var(--danger);text-align:right;max-width:120px">
+          Low: {{ data.bottleneck }}
+        </div>
+        {% endif %}
+      </div>
+
+    </div>{# /product-row #}
+    {% endfor %}
+
+  </div>{# /product-list #}
+
+  {# ── Right: Inventory Sidebar ─────────────────────────────── #}
+  <div class="inv-sidebar">
+    <div class="inv-sidebar-title">
+      <i class="bi bi-boxes"></i> Current Stock
+    </div>
+
+    {% for part in parts %}
+    {% set qty = inventory_map.get(part.name, 0) %}
+    <div class="inv-part-row">
+      <img
+        src="{{ url_for('static', filename='images/parts/' + part_images[part.name]) }}"
+        alt="{{ part.name }}"
+        class="inv-part-img"
+        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+      />
+      <div class="inv-part-img-placeholder" style="display:none">
+        <i class="bi bi-circle"></i>
+      </div>
+      <span class="inv-part-name" title="{{ part.name }}">{{ part.name }}</span>
+      <span class="inv-part-qty {% if qty <= 3 %}low{% endif %}">
+        {{ fmt(qty) }}
+      </span>
+    </div>
+    {% endfor %}
+
+  </div>{# /inv-sidebar #}
+
+</div>{# /main-menu-layout #}
+
+<script>
+// Activate Bootstrap tooltips for disabled buttons
+document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+  new bootstrap.Tooltip(el);
+});
+</script>
