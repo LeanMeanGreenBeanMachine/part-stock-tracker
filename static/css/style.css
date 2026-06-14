@@ -9,10 +9,10 @@
   --border:       #2e2e2e;
   --border-light: #3a3a3a;
 
-  --neon:         #39ff14;
-  --neon-dim:     #27b30d;
-  --neon-glow:    rgba(57, 255, 20, 0.18);
-  --neon-glow-lg: rgba(57, 255, 20, 0.30);
+  --neon:         #6cc546;
+  --neon-dim:     #4e9030;
+  --neon-glow:    rgba(108, 197, 70, 0.18);
+  --neon-glow-lg: rgba(108, 197, 70, 0.30);
 
   --text-primary:   #e8e8e8;
   --text-secondary: #888;
@@ -20,7 +20,7 @@
 
   --danger:  #e05252;
   --warning: #f0a030;
-  --success: #39ff14;
+  --success: #6cc546;
   --info:    #3ab0ff;
 
   --sidebar-w: 210px;
@@ -176,6 +176,7 @@ a:hover { color: var(--neon-dim); }
 .body-row {
   display: flex;
   flex: 1;
+  min-height: 0;   /* allow flex children to shrink below content height */
   overflow: hidden;
 }
 
@@ -189,6 +190,7 @@ a:hover { color: var(--neon-dim); }
   flex-direction: column;
   padding: 0.75rem 0;
   flex-shrink: 0;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -230,9 +232,19 @@ a:hover { color: var(--neon-dim); }
 
 #content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 1.5rem;
   background: var(--bg-base);
+  transition: opacity 0.15s ease;
+}
+
+/* Applied only while the spinner is showing; removed by JS once content loads */
+#content.content-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
 }
 
 .section-title {
@@ -739,6 +751,32 @@ input:checked + .toggle-slider::before {
   font-size: 0.88rem;
 }
 .empty-state i { font-size: 2rem; display: block; margin-bottom: 0.5rem; }
+
+/* ── Content Column + Page Sub-Header ─────────────────────── */
+
+.content-col {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#page-subheader {
+  padding: 0.55rem 1.5rem;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+#page-subheader .ph-office { color: var(--neon); }
+#page-subheader .ph-sep    { color: var(--text-muted); font-weight: 400; }
+#page-subheader .ph-section { color: var(--text-secondary); }
 
 /* ── Mobile ────────────────────────────────────────────────── */
 

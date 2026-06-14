@@ -1,23 +1,21 @@
 {# ── Settings ─────────────────────────────────────────────────── #}
-<div class="section-title">
-  <i class="bi bi-gear-fill"></i>
-  {{ office.name }} — Settings
-</div>
 
 {# ── Threshold ────────────────────────────────────────────────── #}
 <div class="card-dark p-4 mb-3">
-  <h6 style="color:var(--text-primary);margin-bottom:0.25rem">
+  <h6 style="color:var(--text-primary);margin-bottom:1rem">
     Low Stock Notification Threshold
+    <i class="bi bi-question-circle ms-1"
+       style="color:var(--text-muted);font-size:0.82rem;cursor:pointer;vertical-align:middle"
+       data-bs-toggle="tooltip"
+       data-bs-placement="right"
+       title="A notification is sent when the fewest buildable units across all products drops to or below this number. You will only be alerted once per dip — no repeat alerts until stock recovers."></i>
   </h6>
-  <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1rem">
-    Send a low-stock alert when the fewest buildable units drops to or below this number.
-  </p>
 
   <form method="POST" action="{{ url_for('save_settings') }}">
     <input type="hidden" name="office_id" value="{{ office.id }}" />
 
     <div class="d-flex align-items-center gap-3 mb-3">
-      <span style="font-size:0.82rem;color:var(--text-secondary);white-space:nowrap">3</span>
+      <span style="font-size:0.82rem;color:var(--text-muted)">3</span>
       <input
         type="range"
         name="threshold"
@@ -25,12 +23,11 @@
         class="range-neon"
         min="3" max="10" step="1"
         value="{{ settings.low_stock_threshold if settings else 3 }}"
-        oninput="document.getElementById('thresholdVal').textContent = this.value"
+        oninput="updateSliderFill(this); document.getElementById('thresholdVal').textContent = this.value"
       />
-      <span style="font-size:0.82rem;color:var(--text-secondary);white-space:nowrap">10</span>
-      <span
-        id="thresholdVal"
-        style="font-size:1.2rem;font-weight:700;color:var(--neon);min-width:2rem;text-align:center">
+      <span style="font-size:0.82rem;color:var(--text-muted)">10</span>
+      <span id="thresholdVal"
+            style="font-size:1.2rem;font-weight:700;color:var(--neon);min-width:2rem;text-align:center">
         {{ settings.low_stock_threshold if settings else 3 }}
       </span>
     </div>
@@ -52,62 +49,83 @@
 </div>
 
 {# ── Contacts ─────────────────────────────────────────────────── #}
-<div class="d-flex align-items-center justify-content-between mb-2">
-  <h6 style="color:var(--text-primary);margin:0">Low Stock Notification Contacts</h6>
-  <button class="btn-neon" data-bs-toggle="modal" data-bs-target="#addContactModal"
-          style="font-size:0.8rem;padding:0.3rem 0.85rem">
-    <i class="bi bi-plus-lg me-1"></i>Add Contact
-  </button>
-</div>
-<p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1rem">
-  Contacts are global. Toggle them on/off per office below.
-</p>
-
-{% if contacts %}
-  {% for contact in contacts %}
-  <div class="contact-card">
-    <div class="contact-card-info">
-      <div class="contact-label">
-        {{ contact.label or contact.method }}
-        <span style="font-size:0.72rem;font-weight:400;color:var(--text-muted);margin-left:0.4rem">
-          {{ contact.method }}
-        </span>
-      </div>
-      <div class="contact-detail">
-        {% if contact.email %}📧 {{ contact.email }}{% endif %}
-        {% if contact.telegram_chat_id %}🤖 Chat {{ contact.telegram_chat_id }}{% endif %}
-      </div>
-    </div>
-
-    {# Per-office toggle #}
-    <form method="POST" action="{{ url_for('toggle_contact') }}" style="margin:0">
-      <input type="hidden" name="office_id"  value="{{ office.id }}" />
-      <input type="hidden" name="contact_id" value="{{ contact.id }}" />
-      <label class="toggle-switch" title="Toggle notifications for {{ office.name }}">
-        <input type="checkbox"
-               {% if contact_state.get(contact.id) %}checked{% endif %}
-               onchange="this.form.submit()" />
-        <span class="toggle-slider"></span>
-      </label>
-    </form>
-
-    {# Delete contact #}
-    <form method="POST" action="{{ url_for('delete_contact') }}" style="margin:0"
-          onsubmit="return confirm('Delete this contact? This cannot be undone.')">
-      <input type="hidden" name="office_id"  value="{{ office.id }}" />
-      <input type="hidden" name="contact_id" value="{{ contact.id }}" />
-      <button type="submit" class="btn-danger-subtle" style="padding:0.25rem 0.6rem;font-size:0.8rem">
-        <i class="bi bi-trash"></i>
-      </button>
-    </form>
+<div class="card-dark p-4">
+  <div style="margin-bottom:1rem">
+    <h6 style="color:var(--text-primary);margin-bottom:0.4rem">
+      Notification Contacts
+      <i class="bi bi-question-circle ms-1"
+         style="color:var(--text-muted);font-size:0.82rem;cursor:pointer;vertical-align:middle"
+         data-bs-toggle="tooltip"
+         data-bs-placement="right"
+         title="Contacts are global across both offices. Use the toggle on each card to enable or disable that contact for this specific office."></i>
+    </h6>
+    <button class="btn-neon" data-bs-toggle="modal" data-bs-target="#addContactModal"
+            style="font-size:0.8rem;padding:0.3rem 0.85rem">
+      <i class="bi bi-plus-lg me-1"></i>Add Contact
+    </button>
   </div>
-  {% endfor %}
-{% else %}
-<div class="empty-state" style="padding:2rem">
-  <i class="bi bi-bell-slash"></i>
-  No contacts added yet.
+
+  {% if contacts %}
+    {% for contact in contacts %}
+    <div class="contact-card">
+      <div class="contact-card-info">
+        <div class="contact-label">
+          {{ contact.label or contact.method }}
+          <span style="font-size:0.72rem;font-weight:400;color:var(--text-muted);margin-left:0.4rem">
+            {{ contact.method }}
+          </span>
+        </div>
+        <div class="contact-detail">
+          {% if contact.email %}📧 {{ contact.email }}{% endif %}
+          {% if contact.telegram_chat_id %}🤖 Chat {{ contact.telegram_chat_id }}{% endif %}
+        </div>
+      </div>
+
+      {# Per-office enable/disable toggle #}
+      <form method="POST" action="{{ url_for('toggle_contact') }}" style="margin:0">
+        <input type="hidden" name="office_id"  value="{{ office.id }}" />
+        <input type="hidden" name="contact_id" value="{{ contact.id }}" />
+        <label class="toggle-switch"
+               title="{% if contact_state.get(contact.id) %}Enabled for {{ office.name }}{% else %}Disabled for {{ office.name }}{% endif %}">
+          <input type="checkbox"
+                 {% if contact_state.get(contact.id) %}checked{% endif %}
+                 onchange="this.form.submit()" />
+          <span class="toggle-slider"></span>
+        </label>
+      </form>
+
+      {# Delete contact (global) #}
+      <form method="POST" action="{{ url_for('delete_contact') }}" style="margin:0"
+            onsubmit="return confirm('Delete this contact? Cannot be undone.')">
+        <input type="hidden" name="office_id"  value="{{ office.id }}" />
+        <input type="hidden" name="contact_id" value="{{ contact.id }}" />
+        <button type="submit" class="btn-danger-subtle" style="padding:0.25rem 0.6rem;font-size:0.8rem">
+          <i class="bi bi-trash"></i>
+        </button>
+      </form>
+    </div>
+    {% endfor %}
+  {% else %}
+  <div class="empty-state" style="padding:1.5rem">
+    <i class="bi bi-bell-slash"></i>
+    No contacts added yet.
+  </div>
+  {% endif %}
 </div>
-{% endif %}
+
+{# ── API info (collapsed behind ? above) ──────────────────────── #}
+{# Cron endpoint hint lives in its own small note, clutter-free #}
+<div style="margin-top:0.75rem;font-size:0.76rem;color:var(--text-muted);display:flex;align-items:center;gap:0.4rem">
+  <i class="bi bi-info-circle"></i>
+  Low-stock checks are triggered by calling
+  <code style="color:var(--neon);font-size:0.76rem">/api/check_low_stock?token=…</code>
+  from a cron job or uptime monitor.
+  <i class="bi bi-question-circle"
+     style="cursor:pointer"
+     data-bs-toggle="tooltip"
+     data-bs-placement="top"
+     title="Set the CHECK_TOKEN environment variable and call this endpoint every 15–60 minutes from Render cron, an uptime monitor, or any external scheduler. Notifications fire at most once per low-stock event per office."></i>
+</div>
 
 {# ── Add Contact Modal ─────────────────────────────────────────── #}
 <div class="modal fade" id="addContactModal" tabindex="-1">
@@ -123,7 +141,7 @@
 
         <div class="modal-body-dark">
           <div class="mb-3">
-            <label class="form-label-dark">Display Name (optional)</label>
+            <label class="form-label-dark">Display Name <span style="color:var(--text-muted)">(optional)</span></label>
             <input type="text" name="label" class="form-control-dark"
                    placeholder="e.g. Brandon's Phone" />
           </div>
@@ -169,19 +187,27 @@
   </div>
 </div>
 
-{# ── Low-Stock Check Info ──────────────────────────────────────── #}
-<div class="card-dark p-3 mt-3" style="font-size:0.8rem;color:var(--text-muted)">
-  <i class="bi bi-info-circle me-1"></i>
-  To trigger low-stock checks automatically, call
-  <code style="color:var(--neon)">/api/check_low_stock?token=YOUR_CHECK_TOKEN</code>
-  from a cron job, Render cron, or an uptime monitor on any interval (every 15–60 min is typical).
-</div>
-
 <script>
+// Initialize all Bootstrap tooltips in this partial
+document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+  new bootstrap.Tooltip(el, { trigger: 'hover focus' });
+});
+
+// Fill the track green up to the current thumb position
+function updateSliderFill(el) {
+  const pct = (el.value - el.min) / (el.max - el.min) * 100;
+  el.style.background =
+    `linear-gradient(to right, #6cc546 ${pct}%, #252525 ${pct}%)`;
+}
+
+// Set initial fill on load
+const _slider = document.getElementById('thresholdSlider');
+if (_slider) updateSliderFill(_slider);
+
 function updateContactFields() {
   const method = document.getElementById('contactMethod').value;
   document.getElementById('emailFields').style.display    = method !== 'Telegram' ? '' : 'none';
   document.getElementById('telegramFields').style.display = method !== 'Email'    ? '' : 'none';
-  document.getElementById('emailInput').required = method !== 'Telegram';
+  document.getElementById('emailInput').required          = method !== 'Telegram';
 }
 </script>
