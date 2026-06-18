@@ -1,7 +1,5 @@
 {# ── Update Inventory ─────────────────────────────────────────── #}
 
-{# Single shared modal — JS populates it before showing #}
-
 {# ── Add / Subtract Modal ────────────────────────────────────── #}
 <div class="modal fade" id="adjModal" tabindex="-1">
   <div class="modal-dialog modal-sm">
@@ -63,20 +61,80 @@
   </div>
 </div>
 
+{# ── Ready Stock ───────────────────────────────────────────────── #}
+<div class="card-dark mb-3" style="overflow:hidden">
+  <div style="padding:0.55rem 1rem;border-bottom:1px solid #222;
+              font-size:0.75rem;font-weight:600;color:var(--text-muted);
+              text-transform:uppercase;letter-spacing:0.06em">
+    <i class="bi bi-box-seam me-1"></i> Ready Stock
+  </div>
+  <table class="table-dark-custom">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Product</th>
+        <th>Qty</th>
+        <th style="text-align:right;padding-right:1rem">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for part in parts %}
+      {% if part.name in stock_part_names %}
+      {% set qty = inventory_map.get(part.name, 0) %}
+      <tr>
+        <td style="width:36px;padding:0.5rem 0 0.5rem 0.75rem">
+          <img
+            src="{{ url_for('static', filename='images/products/' + part_images[part.name]) }}"
+            alt="{{ part.name.replace(' [Ready]', '') }}"
+            style="width:28px;height:28px;object-fit:contain;background:var(--bg-elevated);border-radius:3px"
+            onerror="this.style.visibility='hidden'"
+          />
+        </td>
+        <td>{{ part.name.replace(' [Ready]', '') }}</td>
+        <td><strong style="color:var(--neon)">{{ fmt(qty) }}</strong></td>
+        <td style="text-align:right;padding-right:0.75rem">
+          <div class="d-flex gap-2 justify-content-end">
+            <button class="btn-neon" style="font-size:0.76rem;padding:0.25rem 0.65rem"
+                    onclick="openAdj('{{ part.name }}', 'add', {{ qty }})">
+              <i class="bi bi-plus-lg"></i><span class="d-none d-sm-inline"> Add</span>
+            </button>
+            <button class="btn-outline-subtle" style="font-size:0.76rem"
+                    onclick="openAdj('{{ part.name }}', 'subtract', {{ qty }})">
+              <i class="bi bi-dash-lg"></i><span class="d-none d-sm-inline"> Sub</span>
+            </button>
+            <button class="btn-outline-subtle" style="font-size:0.76rem"
+                    onclick="openXfr('{{ part.name }}', {{ qty }})">
+              <i class="bi bi-arrow-left-right"></i><span class="d-none d-sm-inline"> Transfer</span>
+            </button>
+          </div>
+        </td>
+      </tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
 {# ── Parts Table ──────────────────────────────────────────────── #}
 <div class="card-dark" style="overflow:hidden">
+  <div style="padding:0.55rem 1rem;border-bottom:1px solid #222;
+              font-size:0.75rem;font-weight:600;color:var(--text-muted);
+              text-transform:uppercase;letter-spacing:0.06em">
+    <i class="bi bi-boxes me-1"></i> Parts
+  </div>
   <table class="table-dark-custom">
     <thead>
       <tr>
         <th></th>
         <th>Part</th>
         <th>Qty</th>
-        <th>Unit</th>
+        <th class="d-none d-sm-table-cell">Unit</th>
         <th style="text-align:right;padding-right:1rem">Actions</th>
       </tr>
     </thead>
     <tbody>
       {% for part in parts %}
+      {% if part.name not in stock_part_names %}
       {% set qty = inventory_map.get(part.name, 0) %}
       <tr>
         <td style="width:36px;padding:0.5rem 0 0.5rem 0.75rem">
@@ -89,24 +147,25 @@
         </td>
         <td>{{ part.name }}</td>
         <td><strong style="color:{% if qty <= 3 %}var(--danger){% else %}var(--text-primary){% endif %}">{{ fmt(qty) }}</strong></td>
-        <td style="color:var(--text-muted)">{{ part.unit }}</td>
+        <td class="d-none d-sm-table-cell" style="color:var(--text-muted)">{{ part.unit }}</td>
         <td style="text-align:right;padding-right:0.75rem">
           <div class="d-flex gap-2 justify-content-end">
             <button class="btn-neon" style="font-size:0.76rem;padding:0.25rem 0.65rem"
                     onclick="openAdj('{{ part.name }}', 'add', {{ qty }})">
-              <i class="bi bi-plus-lg"></i> Add
+              <i class="bi bi-plus-lg"></i><span class="d-none d-sm-inline"> Add</span>
             </button>
             <button class="btn-outline-subtle" style="font-size:0.76rem"
                     onclick="openAdj('{{ part.name }}', 'subtract', {{ qty }})">
-              <i class="bi bi-dash-lg"></i> Sub
+              <i class="bi bi-dash-lg"></i><span class="d-none d-sm-inline"> Sub</span>
             </button>
             <button class="btn-outline-subtle" style="font-size:0.76rem"
                     onclick="openXfr('{{ part.name }}', {{ qty }})">
-              <i class="bi bi-arrow-left-right"></i> Transfer
+              <i class="bi bi-arrow-left-right"></i><span class="d-none d-sm-inline"> Transfer</span>
             </button>
           </div>
         </td>
       </tr>
+      {% endif %}
       {% endfor %}
     </tbody>
   </table>
@@ -117,18 +176,18 @@ const adjModal = new bootstrap.Modal(document.getElementById('adjModal'));
 const xfrModal = new bootstrap.Modal(document.getElementById('xfrModal'));
 
 function openAdj(partName, action, currentQty) {
-  document.getElementById('adjPartName').value   = partName;
-  document.getElementById('adjAction').value     = action;
-  document.getElementById('adjAmount').value     = '';
-  document.getElementById('adjNote').value       = '';
+  document.getElementById('adjPartName').value = partName;
+  document.getElementById('adjAction').value   = action;
+  document.getElementById('adjAmount').value   = '';
+  document.getElementById('adjNote').value     = '';
 
   const isAdd = action === 'add';
+  const displayName = partName.replace(' [Ready]', '');
   document.getElementById('adjModalTitle').textContent =
-    (isAdd ? 'Add Stock — ' : 'Remove Stock — ') + partName;
+    (isAdd ? 'Add Stock — ' : 'Remove Stock — ') + displayName;
   document.getElementById('adjSubmitBtn').textContent =
     isAdd ? 'Add Stock' : 'Remove Stock';
 
-  // For subtract, cap the max at current quantity
   const amountInput = document.getElementById('adjAmount');
   if (!isAdd) {
     amountInput.max = currentQty;
@@ -142,10 +201,10 @@ function openAdj(partName, action, currentQty) {
 }
 
 function openXfr(partName, currentQty) {
-  document.getElementById('xfrPartName').value   = partName;
-  document.getElementById('xfrAmount').value     = '';
-  document.getElementById('xfrPartLabel').textContent =
-    `${partName} — ${currentQty} in stock`;
+  const displayName = partName.replace(' [Ready]', '');
+  document.getElementById('xfrPartName').value  = partName;
+  document.getElementById('xfrAmount').value    = '';
+  document.getElementById('xfrPartLabel').textContent = `${displayName} — ${currentQty} in stock`;
   document.getElementById('xfrAmount').max = currentQty;
   xfrModal.show();
   setTimeout(() => document.getElementById('xfrAmount').focus(), 400);

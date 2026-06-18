@@ -5,7 +5,7 @@
   <div class="product-list">
 
     {% for name, data in product_data.items() %}
-    {% set can_build = data.buildable >= 1 %}
+    {% set can_build = data.premade >= 1 or data.buildable >= 1 %}
 
     <div class="product-row">
 
@@ -40,7 +40,14 @@
       {# Log Order action #}
       <div class="product-action">
         <div class="buildable-badge">
-          Can build: <span class="buildable-count">{{ data.buildable }}</span>
+          {% if data.premade >= 1 %}
+            <span style="color:var(--neon);font-weight:700">{{ data.premade|int }} ready</span>
+            {% if data.buildable >= 1 %}
+              <span style="color:var(--text-muted);font-size:0.72rem"> + {{ data.buildable }} from parts</span>
+            {% endif %}
+          {% else %}
+            From parts: <span class="buildable-count">{{ data.buildable }}</span>
+          {% endif %}
         </div>
 
         {% if can_build %}
@@ -55,7 +62,7 @@
         <button
           class="btn-neon disabled"
           disabled
-          title="Not enough stock. Bottleneck: {{ data.bottleneck or 'N/A' }}"
+          title="No pre-made stock and not enough parts. Bottleneck: {{ data.bottleneck or 'N/A' }}"
           data-bs-toggle="tooltip"
           data-bs-placement="left">
           <i class="bi bi-slash-circle me-1"></i>Log Order
@@ -78,6 +85,7 @@
     </div>
 
     {% for part in parts %}
+    {% if part.name not in stock_part_names %}
     {% set qty = inventory_map.get(part.name, 0) %}
     <div class="inv-part-row">
       <img
@@ -94,7 +102,38 @@
         {{ fmt(qty) }}
       </span>
     </div>
+    {% endif %}
     {% endfor %}
+
+    {# ── Ready Stock section ─────────────────────────── #}
+    {% set has_ready = namespace(value=false) %}
+    {% for part in parts %}{% if part.name in stock_part_names %}{% set has_ready.value = true %}{% endif %}{% endfor %}
+
+    {% if has_ready.value %}
+    <div class="inv-sidebar-title" style="margin-top:0.85rem;padding-top:0.6rem;border-top:1px solid #2a2a2a;font-size:0.7rem">
+      <i class="bi bi-box-seam"></i> Ready Stock
+    </div>
+    {% for part in parts %}
+    {% if part.name in stock_part_names %}
+    {% set qty = inventory_map.get(part.name, 0) %}
+    <div class="inv-part-row">
+      <img
+        src="{{ url_for('static', filename='images/products/' + part_images[part.name]) }}"
+        alt="{{ part.name }}"
+        class="inv-part-img"
+        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+      />
+      <div class="inv-part-img-placeholder" style="display:none">
+        <i class="bi bi-circle"></i>
+      </div>
+      <span class="inv-part-name" title="{{ part.name.replace(' [Ready]', '') }}">{{ part.name.replace(' [Ready]', '') }}</span>
+      <span class="inv-part-qty" style="color:var(--neon)">
+        {{ fmt(qty) }}
+      </span>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% endif %}
 
   </div>{# /inv-sidebar #}
 

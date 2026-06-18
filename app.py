@@ -53,6 +53,7 @@ PRODUCTS = {
             "Envelopes": 1,
             "Small Shrink Tube": 1.5,
             "Large Shrink Tube": 1,
+            "Large Cellophane Bags": 1,
         },
         "contains": ["Black Wire", "Red Wire", "Solder"],
         "image": "2_foot_cable.png",
@@ -66,6 +67,7 @@ PRODUCTS = {
             "Envelopes": 1,
             "Small Shrink Tube": 1.5,
             "Large Shrink Tube": 1,
+            "Large Cellophane Bags": 1,
         },
         "contains": ["Black Wire", "Red Wire", "Solder"],
         "image": "4_foot_cable.png",
@@ -79,6 +81,7 @@ PRODUCTS = {
             "Envelopes": 1,
             "Small Shrink Tube": 1.5,
             "Large Shrink Tube": 1,
+            "Large Cellophane Bags": 1,
         },
         "contains": ["Black Wire", "Red Wire", "Solder"],
         "image": "short_cable.png",
@@ -92,6 +95,7 @@ PRODUCTS = {
             "Small Shrink Tube": 0.5,
             "Box Lids": 1,
             "Rear Boxes": 1,
+            "Small Cellophane Bags": 1,
         },
         "contains": ["Black Wire", "Red Wire", "UV Resin", "Thread Locker", "Solder"],
         "image": "rear_box.png",
@@ -105,6 +109,7 @@ PRODUCTS = {
             "Small Shrink Tube": 0.5,
             "Box Lids": 1,
             "Front Boxes": 1,
+            "Small Cellophane Bags": 1,
         },
         "contains": ["Black Wire", "Red Wire", "UV Resin", "Thread Locker", "Solder"],
         "image": "front_box.png",
@@ -113,28 +118,45 @@ PRODUCTS = {
 
 # Part name → static image filename
 PART_IMAGES = {
-    "Terminals":        "terminals.png",
-    "Wire Seals":       "wire_seals.png",
-    "Aux Ports":        "aux_ports.png",
-    "Connectors":       "connectors.png",
-    "Box Lids":         "box_lids.png",
-    "Rear Boxes":       "rear_boxes.png",
-    "Front Boxes":      "front_boxes.png",
-    "Small Shrink Tube":"small_shrink_tube.png",
-    "Large Shrink Tube":"large_shrink_tube.png",
-    "Envelopes":        "envelopes.png",
-    "Full Cables":      "full_cables.png",
-    "Short Cables":     "short_cables.png",
-    "Aux Port Nuts":    "aux_port_nuts.png",
+    "Terminals":             "terminals.png",
+    "Wire Seals":            "wire_seals.png",
+    "Aux Ports":             "aux_ports.png",
+    "Connectors":            "connectors.png",
+    "Box Lids":              "box_lids.png",
+    "Rear Boxes":            "rear_boxes.png",
+    "Front Boxes":           "front_boxes.png",
+    "Small Shrink Tube":     "small_shrink_tube.png",
+    "Large Shrink Tube":     "large_shrink_tube.png",
+    "Envelopes":             "envelopes.png",
+    "Full Cables":           "full_cables.png",
+    "Short Cables":          "short_cables.png",
+    "Aux Port Nuts":         "aux_port_nuts.png",
+    "Large Cellophane Bags": "large_bags.png",
+    "Small Cellophane Bags": "small_bags.png",
+    "Long Cellophane Bags":  "long_bags.png",
+    "2 Foot Cable [Ready]":  "2_foot_cable.png",
+    "4 Foot Cable [Ready]":  "4_foot_cable.png",
+    "Short Cable [Ready]":   "short_cable.png",
+    "Rear Box [Ready]":      "rear_box.png",
+    "Front Box [Ready]":     "front_box.png",
+}
+
+# Maps product name → the Part name that holds its pre-made finished-goods stock
+PRODUCT_STOCK_PARTS = {
+    "2 Foot Cable": "2 Foot Cable [Ready]",
+    "4 Foot Cable": "4 Foot Cable [Ready]",
+    "Short Cable":  "Short Cable [Ready]",
+    "Rear Box":     "Rear Box [Ready]",
+    "Front Box":    "Front Box [Ready]",
 }
 
 SEED_PARTS = list(PART_IMAGES.keys())
 
-# Colors for Chart.js lines (one per part, 13 total)
 _CHART_COLORS = [
     '#39ff14', '#00cfff', '#ff4444', '#ffaa00', '#cc00ff',
     '#00ff88', '#ff6eb4', '#ffe100', '#4fc3f7', '#a5d6a7',
-    '#ff8f00', '#b0bec5', '#f48fb1',
+    '#ff8f00', '#b0bec5', '#f48fb1', '#80cbc4', '#ce93d8',
+    '#ef9a9a', '#80deea', '#c5e1a5',
 ]
 
 # ── Models ────────────────────────────────────────────────────────────────────
@@ -177,7 +199,8 @@ class ProductLog(db.Model):
     product_name = db.Column(db.String(100), nullable=False)
     timestamp    = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     quantity     = db.Column(db.Integer, default=1, nullable=False)
-    struck       = db.Column(db.Boolean, default=False)  # True when reversed via "Strike From Log"
+    struck       = db.Column(db.Boolean, default=False)   # True when reversed via "Strike From Log"
+    used_premade = db.Column(db.Boolean, default=False)   # True when pre-made stock was used (not BOM parts)
 
 
 class InventoryLog(db.Model):
@@ -211,6 +234,8 @@ class OfficeContactSetting(db.Model):
     office_id             = db.Column(db.Integer, db.ForeignKey('offices.id',   ondelete='CASCADE'), nullable=False)
     contact_id            = db.Column(db.Integer, db.ForeignKey('contacts.id',  ondelete='CASCADE'), nullable=False)
     notifications_enabled = db.Column(db.Boolean, default=False)
+    threshold             = db.Column(db.Integer, default=3)
+    advanced_mode         = db.Column(db.Boolean, default=False)
     __table_args__ = (db.UniqueConstraint('office_id', 'contact_id'),)
 
 
@@ -227,6 +252,27 @@ class OfficeAlertState(db.Model):
     office_id        = db.Column(db.Integer, db.ForeignKey('offices.id', ondelete='CASCADE'), nullable=False, unique=True)
     is_currently_low = db.Column(db.Boolean, default=False)
     last_notified_at = db.Column(db.DateTime)
+
+
+class ContactAlertState(db.Model):
+    __tablename__ = 'contact_alert_states'
+    id               = db.Column(db.Integer, primary_key=True)
+    office_id        = db.Column(db.Integer, db.ForeignKey('offices.id',  ondelete='CASCADE'), nullable=False)
+    contact_id       = db.Column(db.Integer, db.ForeignKey('contacts.id', ondelete='CASCADE'), nullable=False)
+    is_currently_low = db.Column(db.Boolean, default=False)
+    last_notified_at = db.Column(db.DateTime)
+    __table_args__ = (db.UniqueConstraint('office_id', 'contact_id'),)
+
+
+class PartThreshold(db.Model):
+    __tablename__ = 'part_thresholds'
+    id               = db.Column(db.Integer, primary_key=True)
+    office_id        = db.Column(db.Integer, db.ForeignKey('offices.id',  ondelete='CASCADE'), nullable=False)
+    contact_id       = db.Column(db.Integer, db.ForeignKey('contacts.id', ondelete='CASCADE'), nullable=False)
+    part_id          = db.Column(db.Integer, db.ForeignKey('parts.id',    ondelete='CASCADE'), nullable=False)
+    threshold        = db.Column(db.Integer, default=0)
+    is_currently_low = db.Column(db.Boolean, default=False)
+    __table_args__ = (db.UniqueConstraint('office_id', 'contact_id', 'part_id'),)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -271,16 +317,30 @@ def calculate_buildable(inventory_map, product_name):
     return (0, None) if min_buildable == float('inf') else (min_buildable, bottleneck)
 
 
+def get_premade_stock(office_id, product_name):
+    """Return the quantity of pre-made finished-goods stock for a product at an office."""
+    part_name = PRODUCT_STOCK_PARTS.get(product_name)
+    if not part_name:
+        return 0
+    part = Part.query.filter_by(name=part_name).first()
+    if not part:
+        return 0
+    inv = Inventory.query.filter_by(office_id=office_id, part_id=part.id).first()
+    return inv.quantity if inv else 0
+
+
 def calculate_lowest_buildable(office_id):
     """
     Return (lowest_buildable, bottleneck_part, worst_product_name) across
-    all 5 products for the given office. Used for threshold checks.
+    all 5 products for the given office. Includes pre-made stock in the count.
     """
     inv = get_inventory_map(office_id)
-    results = [
-        (calculate_buildable(inv, name)[0], calculate_buildable(inv, name)[1], name)
-        for name in PRODUCTS
-    ]
+    results = []
+    for name in PRODUCTS:
+        from_parts, bottleneck = calculate_buildable(inv, name)
+        premade = get_premade_stock(office_id, name)
+        total = from_parts + int(premade)
+        results.append((total, bottleneck, name))
     results.sort(key=lambda x: x[0])
     return results[0] if results else (0, None, None)
 
@@ -430,7 +490,10 @@ def partial_main_menu():
     product_data = {}
     for name, info in PRODUCTS.items():
         buildable, bottleneck = calculate_buildable(inventory_map, name)
-        product_data[name] = {**info, 'buildable': buildable, 'bottleneck': bottleneck}
+        premade = get_premade_stock(office_id, name)
+        product_data[name] = {**info, 'buildable': buildable, 'bottleneck': bottleneck, 'premade': premade}
+
+    stock_part_names = set(PRODUCT_STOCK_PARTS.values())
 
     return render_template(
         'partials/main_menu.html',
@@ -439,6 +502,7 @@ def partial_main_menu():
         inventory_map=inventory_map,
         parts=parts,
         part_images=PART_IMAGES,
+        stock_part_names=stock_part_names,
     )
 
 
@@ -458,6 +522,7 @@ def partial_update_inventory():
         parts=parts,
         inventory_map=inventory_map,
         part_images=PART_IMAGES,
+        stock_part_names=set(PRODUCT_STOCK_PARTS.values()),
     )
 
 
@@ -511,20 +576,30 @@ def partial_settings():
     office     = Office.query.get_or_404(office_id)
     settings   = OfficeSetting.query.filter_by(office_id=office_id).first()
     contacts   = Contact.query.all()
+    parts      = Part.query.order_by(Part.name).all()
 
-    contact_state = {}
+    ocs_map = {}
     for c in contacts:
         ocs = OfficeContactSetting.query.filter_by(office_id=office_id, contact_id=c.id).first()
-        contact_state[c.id] = ocs.notifications_enabled if ocs else False
+        ocs_map[c.id] = ocs
+
+    part_thresholds_map = {}
+    for c in contacts:
+        thresholds = PartThreshold.query.filter_by(office_id=office_id, contact_id=c.id).all()
+        part_thresholds_map[c.id] = {pt.part_id: pt.threshold for pt in thresholds}
 
     lowest_buildable, bottleneck, _ = calculate_lowest_buildable(office_id)
+    parts_for_js = [{'id': p.id, 'name': p.name} for p in parts]
 
     return render_template(
         'partials/settings.html',
         office=office,
         settings=settings,
         contacts=contacts,
-        contact_state=contact_state,
+        ocs_map=ocs_map,
+        parts=parts,
+        parts_for_js=parts_for_js,
+        part_thresholds_map=part_thresholds_map,
         lowest_buildable=lowest_buildable,
         bottleneck=bottleneck,
     )
@@ -575,7 +650,7 @@ def _build_chart_datasets(office_id, parts):
 @app.route('/api/log_order', methods=['POST'])
 @login_required
 def log_order():
-    """Atomically deduct BOM parts from inventory and record a ProductLog entry."""
+    """Deduct from pre-made stock first; fall back to BOM parts. Records a ProductLog."""
     office_id    = request.form.get('office_id', type=int)
     product_name = request.form.get('product_name', '').strip()
 
@@ -585,23 +660,33 @@ def log_order():
 
     bom           = PRODUCTS[product_name]['used_parts']
     inventory_map = get_inventory_map(office_id)
+    premade_qty   = get_premade_stock(office_id, product_name)
     buildable, bottleneck = calculate_buildable(inventory_map, product_name)
 
-    if buildable < 1:
-        flash(f'Not enough stock to build "{product_name}". Bottleneck: {bottleneck}.', 'danger')
+    if premade_qty < 1 and buildable < 1:
+        flash(f'Not enough stock to build "{product_name}". Bottleneck: {bottleneck or "N/A"}.', 'danger')
         return redirect(url_for('dashboard', office_id=office_id, section='main_menu'))
 
     try:
-        for part_name, amount in bom.items():
-            part = Part.query.filter_by(name=part_name).first()
-            if not part:
-                continue
-            inv = _get_or_create_inv(office_id, part.id)
-            inv.quantity = max(0.0, inv.quantity - amount)
-            _record_inventory_change(office_id, part_name, 'order_log', amount,
-                                     inv.quantity, note=f'Used for: {product_name}')
+        if premade_qty >= 1:
+            stock_part_name = PRODUCT_STOCK_PARTS[product_name]
+            stock_part = Part.query.filter_by(name=stock_part_name).first()
+            stock_inv  = _get_or_create_inv(office_id, stock_part.id)
+            stock_inv.quantity = max(0.0, stock_inv.quantity - 1)
+            _record_inventory_change(office_id, stock_part_name, 'order_log', 1,
+                                     stock_inv.quantity, note=f'Pre-made: {product_name}')
+            db.session.add(ProductLog(office_id=office_id, product_name=product_name, used_premade=True))
+        else:
+            for part_name, amount in bom.items():
+                part = Part.query.filter_by(name=part_name).first()
+                if not part:
+                    continue
+                inv = _get_or_create_inv(office_id, part.id)
+                inv.quantity = max(0.0, inv.quantity - amount)
+                _record_inventory_change(office_id, part_name, 'order_log', amount,
+                                         inv.quantity, note=f'Used for: {product_name}')
+            db.session.add(ProductLog(office_id=office_id, product_name=product_name, used_premade=False))
 
-        db.session.add(ProductLog(office_id=office_id, product_name=product_name))
         db.session.commit()
         flash(f'Order logged: {product_name}', 'success')
     except Exception as exc:
@@ -726,14 +811,24 @@ def strike_log(log_id):
     bom = PRODUCTS.get(product_name, {}).get('used_parts', {})
 
     try:
-        for part_name, amount in bom.items():
-            part = Part.query.filter_by(name=part_name).first()
-            if not part:
-                continue
-            inv = _get_or_create_inv(office_id, part.id)
-            inv.quantity += amount
-            _record_inventory_change(office_id, part_name, 'order_strike', amount,
-                                     inv.quantity, note=f'Strike: {product_name} log #{log_id}')
+        if log.used_premade:
+            stock_part_name = PRODUCT_STOCK_PARTS.get(product_name)
+            if stock_part_name:
+                stock_part = Part.query.filter_by(name=stock_part_name).first()
+                if stock_part:
+                    inv = _get_or_create_inv(office_id, stock_part.id)
+                    inv.quantity += 1
+                    _record_inventory_change(office_id, stock_part_name, 'order_strike', 1,
+                                             inv.quantity, note=f'Strike: pre-made {product_name} log #{log_id}')
+        else:
+            for part_name, amount in bom.items():
+                part = Part.query.filter_by(name=part_name).first()
+                if not part:
+                    continue
+                inv = _get_or_create_inv(office_id, part.id)
+                inv.quantity += amount
+                _record_inventory_change(office_id, part_name, 'order_strike', amount,
+                                         inv.quantity, note=f'Strike: {product_name} log #{log_id}')
 
         log.struck = True
         db.session.commit()
@@ -767,6 +862,80 @@ def save_settings():
     return redirect(url_for('dashboard', office_id=office_id, section='settings'))
 
 
+@app.route('/api/save_contact_threshold', methods=['POST'])
+@login_required
+def save_contact_threshold():
+    office_id  = request.form.get('office_id', type=int)
+    contact_id = request.form.get('contact_id', type=int)
+    threshold  = request.form.get('threshold', type=int)
+
+    if threshold is None or threshold < 1:
+        flash('Threshold must be at least 1.', 'danger')
+        return redirect(url_for('dashboard', office_id=office_id, section='settings'))
+
+    ocs = OfficeContactSetting.query.filter_by(office_id=office_id, contact_id=contact_id).first()
+    if not ocs:
+        ocs = OfficeContactSetting(office_id=office_id, contact_id=contact_id,
+                                    notifications_enabled=False, threshold=threshold)
+        db.session.add(ocs)
+    else:
+        ocs.threshold = threshold
+
+    # Reset alert state so the updated threshold can trigger a fresh notification
+    state = ContactAlertState.query.filter_by(office_id=office_id, contact_id=contact_id).first()
+    if state:
+        state.is_currently_low = False
+
+    db.session.commit()
+    flash('Threshold saved.', 'success')
+    return redirect(url_for('dashboard', office_id=office_id, section='settings'))
+
+
+@app.route('/api/toggle_advanced_mode', methods=['POST'])
+@login_required
+def toggle_advanced_mode():
+    office_id  = request.form.get('office_id', type=int)
+    contact_id = request.form.get('contact_id', type=int)
+
+    ocs = OfficeContactSetting.query.filter_by(office_id=office_id, contact_id=contact_id).first()
+    if ocs:
+        ocs.advanced_mode = not ocs.advanced_mode
+        db.session.commit()
+    return redirect(url_for('dashboard', office_id=office_id, section='settings'))
+
+
+@app.route('/api/save_advanced_thresholds', methods=['POST'])
+@login_required
+def save_advanced_thresholds():
+    office_id  = request.form.get('office_id', type=int)
+    contact_id = request.form.get('contact_id', type=int)
+
+    ocs = OfficeContactSetting.query.filter_by(office_id=office_id, contact_id=contact_id).first()
+    if not ocs:
+        flash('Contact setting not found.', 'danger')
+        return redirect(url_for('dashboard', office_id=office_id, section='settings'))
+
+    ocs.advanced_mode = True
+    parts = Part.query.all()
+    for part in parts:
+        threshold = request.form.get(f'part_{part.id}', type=int) or 0
+        threshold = max(0, threshold)
+        pt = PartThreshold.query.filter_by(
+            office_id=office_id, contact_id=contact_id, part_id=part.id
+        ).first()
+        if pt:
+            pt.threshold = threshold
+        else:
+            db.session.add(PartThreshold(
+                office_id=office_id, contact_id=contact_id,
+                part_id=part.id, threshold=threshold
+            ))
+
+    db.session.commit()
+    flash('Advanced thresholds saved.', 'success')
+    return redirect(url_for('dashboard', office_id=office_id, section='settings'))
+
+
 @app.route('/api/add_contact', methods=['POST'])
 @login_required
 def add_contact():
@@ -788,8 +957,11 @@ def add_contact():
 
     # Create disabled-by-default settings for all offices
     for office in Office.query.all():
+        office_settings = OfficeSetting.query.filter_by(office_id=office.id).first()
+        default_threshold = office_settings.low_stock_threshold if office_settings else 3
         db.session.add(OfficeContactSetting(
-            office_id=office.id, contact_id=contact.id, notifications_enabled=False
+            office_id=office.id, contact_id=contact.id,
+            notifications_enabled=False, threshold=default_threshold
         ))
 
     db.session.commit()
@@ -852,49 +1024,104 @@ def check_low_stock():
     return jsonify({'results': results})
 
 
-def _check_office(office):
-    settings = OfficeSetting.query.filter_by(office_id=office.id).first()
-    threshold = settings.low_stock_threshold if settings else 3
-
-    state = OfficeAlertState.query.filter_by(office_id=office.id).first()
+def _get_or_create_contact_alert_state(office_id, contact_id):
+    state = ContactAlertState.query.filter_by(office_id=office_id, contact_id=contact_id).first()
     if not state:
-        state = OfficeAlertState(office_id=office.id, is_currently_low=False)
+        state = ContactAlertState(office_id=office_id, contact_id=contact_id, is_currently_low=False)
         db.session.add(state)
         db.session.flush()
+    return state
 
+
+def _dispatch_advanced(contact, office_name, newly_low_parts):
+    """Send a combined alert listing all parts that newly crossed their threshold."""
+    lines = '\n'.join(
+        f'  • {name} — {qty} remaining (threshold: {threshold})'
+        for name, qty, threshold in newly_low_parts
+    )
+    subject = f'[Vulcan] Low Parts Alert — {office_name}'
+    body = (
+        f'⚠️  Low parts alert for {office_name}.\n\n'
+        f'Parts below threshold:\n{lines}\n\n'
+        f'Please reorder soon.'
+    )
+    if contact.method in ('Email', 'Both') and contact.email:
+        _send_email(contact, subject, body)
+    if contact.method in ('Telegram', 'Both') and contact.telegram_bot_token:
+        _send_telegram(contact, body)
+
+
+def _check_contact_advanced(office, contact, inventory_map):
+    """Per-part threshold check for a contact with advanced mode enabled."""
+    part_thresholds = (
+        PartThreshold.query
+        .filter_by(office_id=office.id, contact_id=contact.id)
+        .filter(PartThreshold.threshold > 0)
+        .all()
+    )
+    newly_low = []
+    for pt in part_thresholds:
+        part = Part.query.get(pt.part_id)
+        if not part:
+            continue
+        qty = inventory_map.get(part.name, 0)
+        is_low = qty <= pt.threshold
+        if is_low and not pt.is_currently_low:
+            newly_low.append((part.name, qty, pt.threshold))
+            pt.is_currently_low = True
+        elif not is_low and pt.is_currently_low:
+            pt.is_currently_low = False
+    if newly_low:
+        _dispatch_advanced(contact, office.name, newly_low)
+    return newly_low
+
+
+def _check_office(office):
+    """
+    Check each enabled contact for this office independently.
+    Simple mode: contact's personal threshold vs. lowest buildable + pre-made stock.
+    Advanced mode: per-part raw quantity thresholds, each part alerted independently.
+    """
+    inventory_map = get_inventory_map(office.id)
     lowest, bottleneck, product_name = calculate_lowest_buildable(office.id)
-    is_low = lowest <= threshold
 
-    if is_low and not state.is_currently_low:
-        # New dip — notify all enabled contacts for this office
-        contacts = (
-            db.session.query(Contact)
-            .join(OfficeContactSetting, OfficeContactSetting.contact_id == Contact.id)
-            .filter(
-                OfficeContactSetting.office_id == office.id,
-                OfficeContactSetting.notifications_enabled == True,
-            )
-            .all()
-        )
-        for contact in contacts:
-            _dispatch(contact, office.name, lowest, bottleneck, product_name)
+    enabled_ocs = OfficeContactSetting.query.filter_by(
+        office_id=office.id, notifications_enabled=True
+    ).all()
 
-        state.is_currently_low   = True
-        state.last_notified_at   = datetime.now(timezone.utc)
-        db.session.commit()
+    results = []
+    for ocs in enabled_ocs:
+        contact = Contact.query.get(ocs.contact_id)
+        if not contact:
+            continue
 
-        return {'office': office.name, 'action': 'notified', 'lowest': lowest,
-                'bottleneck': bottleneck, 'sent_to': [c.label or c.method for c in contacts]}
+        if ocs.advanced_mode:
+            newly_low = _check_contact_advanced(office, contact, inventory_map)
+            results.append({
+                'contact': contact.label or contact.method,
+                'mode': 'advanced',
+                'newly_alerted_parts': [p[0] for p in newly_low],
+            })
+        else:
+            threshold = ocs.threshold
+            state = _get_or_create_contact_alert_state(office.id, contact.id)
+            is_low = lowest <= threshold
 
-    elif not is_low and state.is_currently_low:
-        # Stock recovered — reset flag so the next dip triggers again
-        state.is_currently_low = False
-        db.session.commit()
-        return {'office': office.name, 'action': 'reset', 'lowest': lowest}
+            if is_low and not state.is_currently_low:
+                _dispatch(contact, office.name, lowest, bottleneck, product_name)
+                state.is_currently_low = True
+                state.last_notified_at = datetime.now(timezone.utc)
+                results.append({'contact': contact.label or contact.method, 'action': 'notified',
+                                 'lowest': lowest, 'threshold': threshold})
+            elif not is_low and state.is_currently_low:
+                state.is_currently_low = False
+                results.append({'contact': contact.label or contact.method, 'action': 'reset'})
+            else:
+                results.append({'contact': contact.label or contact.method,
+                                 'action': 'already_alerted' if is_low else 'ok'})
 
-    else:
-        status = 'already_alerted' if is_low else 'ok'
-        return {'office': office.name, 'action': status, 'lowest': lowest}
+    db.session.commit()
+    return {'office': office.name, 'lowest': lowest, 'results': results}
 
 
 # ── Utilities ─────────────────────────────────────────────────────────────────
@@ -944,10 +1171,29 @@ def seed_database():
     db.session.commit()
 
 
+# ── DB Migration ──────────────────────────────────────────────────────────────
+
+def _migrate_database():
+    """Add columns that may be absent from existing databases (safe to re-run)."""
+    migrations = [
+        ("product_logs",            "used_premade",  "BOOLEAN DEFAULT 0"),
+        ("office_contact_settings", "threshold",     "INTEGER DEFAULT 3"),
+        ("office_contact_settings", "advanced_mode", "BOOLEAN DEFAULT 0"),
+    ]
+    with db.engine.connect() as conn:
+        for table, column, col_def in migrations:
+            try:
+                conn.execute(db.text(f"ALTER TABLE {table} ADD COLUMN {column} {col_def}"))
+                conn.commit()
+            except Exception:
+                pass  # Column already exists; ignore
+
+
 # ── Startup ───────────────────────────────────────────────────────────────────
 
 with app.app_context():
     db.create_all()
+    _migrate_database()
     seed_database()
 
 

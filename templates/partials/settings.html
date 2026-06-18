@@ -1,53 +1,5 @@
 {# ── Settings ─────────────────────────────────────────────────── #}
 
-{# ── Threshold ────────────────────────────────────────────────── #}
-<div class="card-dark p-4 mb-3">
-  <h6 style="color:var(--text-primary);margin-bottom:1rem">
-    Low Stock Notification Threshold
-    <i class="bi bi-question-circle ms-1"
-       style="color:var(--text-muted);font-size:0.82rem;cursor:pointer;vertical-align:middle"
-       data-bs-toggle="tooltip"
-       data-bs-placement="right"
-       title="A notification is sent when the fewest buildable units across all products drops to or below this number. You will only be alerted once per dip — no repeat alerts until stock recovers."></i>
-  </h6>
-
-  <form method="POST" action="{{ url_for('save_settings') }}">
-    <input type="hidden" name="office_id" value="{{ office.id }}" />
-
-    <div class="d-flex align-items-center gap-3 mb-3">
-      <span style="font-size:0.82rem;color:var(--text-muted)">3</span>
-      <input
-        type="range"
-        name="threshold"
-        id="thresholdSlider"
-        class="range-neon"
-        min="3" max="10" step="1"
-        value="{{ settings.low_stock_threshold if settings else 3 }}"
-        oninput="updateSliderFill(this); document.getElementById('thresholdVal').textContent = this.value"
-      />
-      <span style="font-size:0.82rem;color:var(--text-muted)">10</span>
-      <span id="thresholdVal"
-            style="font-size:1.2rem;font-weight:700;color:var(--neon);min-width:2rem;text-align:center">
-        {{ settings.low_stock_threshold if settings else 3 }}
-      </span>
-    </div>
-
-    <div style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:1rem">
-      Current lowest buildable:
-      <strong style="color:{% if lowest_buildable <= (settings.low_stock_threshold if settings else 3) %}var(--danger){% else %}var(--neon){% endif %}">
-        {{ lowest_buildable }}
-      </strong>
-      {% if bottleneck %}
-        <span style="color:var(--text-muted)">(bottleneck: {{ bottleneck }})</span>
-      {% endif %}
-    </div>
-
-    <button type="submit" class="btn-neon">
-      <i class="bi bi-save me-1"></i> Save Threshold
-    </button>
-  </form>
-</div>
-
 {# ── Contacts ─────────────────────────────────────────────────── #}
 <div class="card-dark p-4">
   <div style="margin-bottom:1rem">
@@ -57,8 +9,15 @@
          style="color:var(--text-muted);font-size:0.82rem;cursor:pointer;vertical-align:middle"
          data-bs-toggle="tooltip"
          data-bs-placement="right"
-         title="Contacts are global across both offices. Use the toggle on each card to enable or disable that contact for this specific office."></i>
+         title="Contacts are global across both offices. Each contact has its own notification threshold — alerts fire per-contact when stock drops to or below their threshold. Advanced mode enables per-part raw quantity alerts."></i>
     </h6>
+    <div style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:0.75rem">
+      Current lowest buildable:
+      <strong style="color:var(--neon)">{{ lowest_buildable }}</strong>
+      {% if bottleneck %}
+        <span style="color:var(--text-muted)">(bottleneck: {{ bottleneck }})</span>
+      {% endif %}
+    </div>
     <button class="btn-neon" data-bs-toggle="modal" data-bs-target="#addContactModal"
             style="font-size:0.8rem;padding:0.3rem 0.85rem">
       <i class="bi bi-plus-lg me-1"></i>Add Contact
@@ -67,8 +26,15 @@
 
   {% if contacts %}
     {% for contact in contacts %}
-    <div class="contact-card">
-      <div class="contact-card-info">
+    {% set ocs = ocs_map.get(contact.id) %}
+    {% set enabled    = ocs.notifications_enabled if ocs else False %}
+    {% set c_threshold = ocs.threshold if ocs else 3 %}
+    {% set c_advanced  = ocs.advanced_mode if ocs else False %}
+
+    <div class="contact-card" style="flex-wrap:wrap;align-items:flex-start">
+
+      {# ── Top Row ────────────────────────────────────────────── #}
+      <div class="contact-card-info" style="flex:1 1 auto">
         <div class="contact-label">
           {{ contact.label or contact.method }}
           <span style="font-size:0.72rem;font-weight:400;color:var(--text-muted);margin-left:0.4rem">
@@ -81,14 +47,14 @@
         </div>
       </div>
 
-      {# Per-office enable/disable toggle #}
+      {# Enable/disable toggle for this office #}
       <form method="POST" action="{{ url_for('toggle_contact') }}" style="margin:0">
         <input type="hidden" name="office_id"  value="{{ office.id }}" />
         <input type="hidden" name="contact_id" value="{{ contact.id }}" />
         <label class="toggle-switch"
-               title="{% if contact_state.get(contact.id) %}Enabled for {{ office.name }}{% else %}Disabled for {{ office.name }}{% endif %}">
+               title="{% if enabled %}Enabled for {{ office.name }}{% else %}Disabled for {{ office.name }}{% endif %}">
           <input type="checkbox"
-                 {% if contact_state.get(contact.id) %}checked{% endif %}
+                 {% if enabled %}checked{% endif %}
                  onchange="this.form.submit()" />
           <span class="toggle-slider"></span>
         </label>
@@ -103,7 +69,100 @@
           <i class="bi bi-trash"></i>
         </button>
       </form>
-    </div>
+
+      {# ── Threshold + Advanced Controls ─────────────────────── #}
+      <div style="width:100%;margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #2a2a2a">
+
+        {# Simple threshold slider (hidden when advanced mode is on) #}
+        {% if not c_advanced %}
+        <form method="POST" action="{{ url_for('save_contact_threshold') }}"
+              style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.6rem">
+          <input type="hidden" name="office_id"  value="{{ office.id }}" />
+          <input type="hidden" name="contact_id" value="{{ contact.id }}" />
+          <span style="font-size:0.78rem;color:var(--text-muted)">Alert at:</span>
+          <span style="font-size:0.75rem;color:var(--text-muted)">1</span>
+          <input
+            type="range"
+            name="threshold"
+            id="slider_{{ contact.id }}"
+            class="range-neon"
+            min="1" max="20" step="1"
+            value="{{ c_threshold }}"
+            oninput="updateSliderFill(this); document.getElementById('tv_{{ contact.id }}').textContent = this.value"
+            style="flex:1;min-width:80px"
+          />
+          <span style="font-size:0.75rem;color:var(--text-muted)">20</span>
+          <span id="tv_{{ contact.id }}"
+                style="font-size:1rem;font-weight:700;color:var(--neon);min-width:2rem;text-align:center">
+            {{ c_threshold }}
+          </span>
+          <button type="submit" class="btn-neon" style="font-size:0.75rem;padding:0.2rem 0.6rem">
+            <i class="bi bi-save me-1"></i>Save
+          </button>
+        </form>
+        {% else %}
+        <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.6rem">
+          Advanced mode active — per-part thresholds in use.
+        </div>
+        {% endif %}
+
+        {# Advanced mode toggle + configure button #}
+        <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+          <form method="POST" action="{{ url_for('toggle_advanced_mode') }}"
+                style="margin:0;display:flex;align-items:center;gap:0.5rem">
+            <input type="hidden" name="office_id"  value="{{ office.id }}" />
+            <input type="hidden" name="contact_id" value="{{ contact.id }}" />
+            <label class="toggle-switch" style="transform:scale(0.85)" title="Toggle advanced per-part threshold mode">
+              <input type="checkbox"
+                     {% if c_advanced %}checked{% endif %}
+                     onchange="this.form.submit()" />
+              <span class="toggle-slider"></span>
+            </label>
+            <span style="font-size:0.78rem;color:var(--text-muted)">
+              Advanced
+              <i class="bi bi-question-circle ms-1"
+                 style="cursor:pointer"
+                 data-bs-toggle="tooltip"
+                 data-bs-placement="top"
+                 title="Advanced mode lets you set raw quantity thresholds per part. Each part alerts independently — once per dip — when its quantity drops to or below your threshold."></i>
+            </span>
+          </form>
+
+        </div>
+
+        {# Inline per-part thresholds (visible when advanced mode is on) #}
+        {% if c_advanced %}
+        <form method="POST" action="{{ url_for('save_advanced_thresholds') }}"
+              style="margin-top:0.75rem">
+          <input type="hidden" name="office_id"  value="{{ office.id }}" />
+          <input type="hidden" name="contact_id" value="{{ contact.id }}" />
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.35rem 1.25rem;margin-bottom:0.6rem">
+            {% for part in parts %}
+            {% set pt_val = part_thresholds_map.get(contact.id, {}).get(part.id, 0) %}
+            <div style="display:flex;align-items:center;gap:0.4rem">
+              <span style="font-size:0.75rem;color:var(--text-secondary);flex:1;min-width:0;
+                           overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+                    title="{{ part.name }}">
+                {{ part.name.replace(' [Ready]', '') }}
+              </span>
+              <input type="number" name="part_{{ part.id }}"
+                     value="{{ pt_val }}" min="0" max="9999"
+                     class="form-control-dark"
+                     style="width:64px;text-align:center;padding:0.2rem 0.3rem;font-size:0.78rem;flex-shrink:0" />
+            </div>
+            {% endfor %}
+          </div>
+          <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:0.5rem">
+            0 = no alert for that part
+          </div>
+          <button type="submit" class="btn-neon" style="font-size:0.75rem;padding:0.2rem 0.6rem">
+            <i class="bi bi-save me-1"></i>Save Thresholds
+          </button>
+        </form>
+        {% endif %}
+
+      </div>{# /threshold+advanced controls #}
+    </div>{# /contact-card #}
     {% endfor %}
   {% else %}
   <div class="empty-state" style="padding:1.5rem">
@@ -113,9 +172,8 @@
   {% endif %}
 </div>
 
-{# ── API info (collapsed behind ? above) ──────────────────────── #}
-{# Cron endpoint hint lives in its own small note, clutter-free #}
-<div style="margin-top:0.75rem;font-size:0.76rem;color:var(--text-muted);display:flex;align-items:center;gap:0.4rem">
+{# ── API info ──────────────────────────────────────────────────── #}
+<div style="margin-top:0.75rem;font-size:0.76rem;color:var(--text-muted);display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap">
   <i class="bi bi-info-circle"></i>
   Low-stock checks are triggered by calling
   <code style="color:var(--neon);font-size:0.76rem">/api/check_low_stock?token=…</code>
@@ -124,8 +182,9 @@
      style="cursor:pointer"
      data-bs-toggle="tooltip"
      data-bs-placement="top"
-     title="Set the CHECK_TOKEN environment variable and call this endpoint every 15–60 minutes from Render cron, an uptime monitor, or any external scheduler. Notifications fire at most once per low-stock event per office."></i>
+     title="Set CHECK_TOKEN and call this endpoint every 15–60 minutes. Simple mode alerts once per dip per contact. Advanced mode checks each part independently."></i>
 </div>
+
 
 {# ── Add Contact Modal ─────────────────────────────────────────── #}
 <div class="modal fade" id="addContactModal" tabindex="-1">
@@ -188,26 +247,24 @@
 </div>
 
 <script>
-// Initialize all Bootstrap tooltips in this partial
+// Initialize all Bootstrap tooltips
 document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
   new bootstrap.Tooltip(el, { trigger: 'hover focus' });
 });
 
-// Fill the track green up to the current thumb position
+// Green fill for range sliders
 function updateSliderFill(el) {
   const pct = (el.value - el.min) / (el.max - el.min) * 100;
-  el.style.background =
-    `linear-gradient(to right, #6cc546 ${pct}%, #252525 ${pct}%)`;
+  el.style.background = `linear-gradient(to right, #6cc546 ${pct}%, #252525 ${pct}%)`;
 }
+document.querySelectorAll('.range-neon').forEach(s => updateSliderFill(s));
 
-// Set initial fill on load
-const _slider = document.getElementById('thresholdSlider');
-if (_slider) updateSliderFill(_slider);
-
+// Add Contact modal field visibility
 function updateContactFields() {
   const method = document.getElementById('contactMethod').value;
   document.getElementById('emailFields').style.display    = method !== 'Telegram' ? '' : 'none';
   document.getElementById('telegramFields').style.display = method !== 'Email'    ? '' : 'none';
   document.getElementById('emailInput').required          = method !== 'Telegram';
 }
+
 </script>
