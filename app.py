@@ -48,7 +48,7 @@ PRODUCTS = {
         "used_parts": {
             "Terminals": 3,
             "Wire Seals": 3,
-            "Connectors": 1,
+            "3 Pin Connectors": 1,
             "Full Cables": 1,
             "Envelopes": 1,
             "Small Shrink Tube": 1.5,
@@ -62,7 +62,7 @@ PRODUCTS = {
         "used_parts": {
             "Terminals": 3,
             "Wire Seals": 3,
-            "Connectors": 1,
+            "3 Pin Connectors": 1,
             "Full Cables": 1,
             "Envelopes": 1,
             "Small Shrink Tube": 1.5,
@@ -76,7 +76,7 @@ PRODUCTS = {
         "used_parts": {
             "Terminals": 3,
             "Wire Seals": 3,
-            "Connectors": 1,
+            "3 Pin Connectors": 1,
             "Short Cables": 1,
             "Envelopes": 1,
             "Small Shrink Tube": 1.5,
@@ -89,8 +89,8 @@ PRODUCTS = {
     "Rear Box": {
         "used_parts": {
             "Terminals": 3,
-            "Connectors": 1,
-            "Aux Ports": 1,
+            "3 Pin Connectors": 1,
+            "Audio Jacks": 1,
             "Envelopes": 1,
             "Small Shrink Tube": 0.5,
             "Box Lids": 1,
@@ -103,8 +103,8 @@ PRODUCTS = {
     "Front Box": {
         "used_parts": {
             "Terminals": 3,
-            "Connectors": 1,
-            "Aux Ports": 1,
+            "3 Pin Connectors": 1,
+            "Audio Jacks": 1,
             "Envelopes": 1,
             "Small Shrink Tube": 0.5,
             "Box Lids": 1,
@@ -114,14 +114,41 @@ PRODUCTS = {
         "contains": ["Black Wire", "Red Wire", "UV Resin", "Thread Locker", "Solder"],
         "image": "front_box.png",
     },
+    "Output Jack": {
+        "used_parts": {
+            "8 Pin Connectors":  1,
+            "Terminals":         3,
+            "Audio Jacks":       1,
+            "Small Shrink Tube": 1.25,
+            "Large Shrink Tube": 0.25,
+            "Long Cellophane Bags": 1,
+        },
+        "contains": ["Red Wire", "Black Wire", "Mesh Wire Loom", "Solder"],
+        "image": "output_jack.png",
+    },
+    "Charge Box": {
+        "used_parts": {
+            "3 Pin Connectors":  1,
+            "Audio Jacks":       1,
+            "Terminals":         5,
+            "USB Charge Boards": 1,
+            "4 Pin Connectors":  1,
+            "Small Shrink Tube": 0.5,
+            "Charge Box Lids":   1,
+            "Charge Boxes":      1,
+        },
+        "contains": ["Blue Wire", "Yellow Wire", "Green Wire", "Black Wire", "Red Wire", "UV Resin", "Mesh Wire Loom"],
+        "image": "charge_box.png",
+    },
 }
 
 # Part name → static image filename
 PART_IMAGES = {
     "Terminals":             "terminals.png",
     "Wire Seals":            "wire_seals.png",
-    "Aux Ports":             "aux_ports.png",
-    "Connectors":            "connectors.png",
+    "Audio Jacks":           "aux_ports.png",
+    "3 Pin Connectors":      "connectors.png",
+    "8 Pin Connectors":      "8_pin_connectors.png",
     "Box Lids":              "box_lids.png",
     "Rear Boxes":            "rear_boxes.png",
     "Front Boxes":           "front_boxes.png",
@@ -130,15 +157,21 @@ PART_IMAGES = {
     "Envelopes":             "envelopes.png",
     "Full Cables":           "full_cables.png",
     "Short Cables":          "short_cables.png",
-    "Aux Port Nuts":         "aux_port_nuts.png",
+    "Audio Jack Nuts":       "aux_port_nuts.png",
     "Large Cellophane Bags": "large_bags.png",
     "Small Cellophane Bags": "small_bags.png",
     "Long Cellophane Bags":  "long_bags.png",
+    "4 Pin Connectors":      "4_pin_connectors.png",
+    "USB Charge Boards":     "usb_charge_board.png",
+    "Charge Box Lids":       "charge_box_lids.png",
+    "Charge Boxes":          "charge_boxes.png",
     "2 Foot Cable [Ready]":  "2_foot_cable.png",
     "4 Foot Cable [Ready]":  "4_foot_cable.png",
     "Short Cable [Ready]":   "short_cable.png",
     "Rear Box [Ready]":      "rear_box.png",
     "Front Box [Ready]":     "front_box.png",
+    "Output Jack [Ready]":   "output_jack.png",
+    "Charge Box [Ready]":    "charge_box.png",
 }
 
 # Maps product name → the Part name that holds its pre-made finished-goods stock
@@ -148,6 +181,8 @@ PRODUCT_STOCK_PARTS = {
     "Short Cable":  "Short Cable [Ready]",
     "Rear Box":     "Rear Box [Ready]",
     "Front Box":    "Front Box [Ready]",
+    "Output Jack":  "Output Jack [Ready]",
+    "Charge Box":   "Charge Box [Ready]",
 }
 
 SEED_PARTS = list(PART_IMAGES.keys())
@@ -1180,6 +1215,11 @@ def _migrate_database():
         ("office_contact_settings", "threshold",     "INTEGER DEFAULT 3"),
         ("office_contact_settings", "advanced_mode", "BOOLEAN DEFAULT 0"),
     ]
+    part_renames = [
+        ("Aux Ports",      "Audio Jacks"),
+        ("Aux Port Nuts",  "Audio Jack Nuts"),
+        ("Connectors",     "3 Pin Connectors"),
+    ]
     with db.engine.connect() as conn:
         for table, column, col_def in migrations:
             try:
@@ -1187,6 +1227,13 @@ def _migrate_database():
                 conn.commit()
             except Exception:
                 pass  # Column already exists; ignore
+
+        for old_name, new_name in part_renames:
+            conn.execute(db.text("UPDATE parts SET name=:new WHERE name=:old"),
+                         {"new": new_name, "old": old_name})
+            conn.execute(db.text("UPDATE inventory_logs SET part_name=:new WHERE part_name=:old"),
+                         {"new": new_name, "old": old_name})
+        conn.commit()
 
 
 # ── Startup ───────────────────────────────────────────────────────────────────
