@@ -577,6 +577,7 @@ def partial_update_inventory():
         part_images=PART_IMAGES,
         stock_part_names=set(PRODUCT_STOCK_PARTS.values()),
         part_steps=_get_part_steps(),
+        part_units={p.name: p.unit for p in parts},
     )
 
 

@@ -188,9 +188,11 @@ const adjModal = new bootstrap.Modal(document.getElementById('adjModal'));
 const xfrModal = new bootstrap.Modal(document.getElementById('xfrModal'));
 
 const PART_STEPS = {{ part_steps | tojson }};
+const PART_UNITS = {{ part_units | tojson }};
 
 function getStep(partName) {
   if (partName.includes('[Ready]')) return 1;
+  if ((PART_UNITS[partName] || 'units') === 'units') return 1;
   return PART_STEPS[partName] || 1;
 }
 
