@@ -99,7 +99,7 @@
             src="{{ url_for('static', filename='images/products/' + part_images[part.name]) }}"
             alt="{{ part.name.replace(' [Ready]', '') }}"
             style="width:28px;height:28px;object-fit:contain;background:var(--bg-elevated);border-radius:3px"
-            onerror="this.style.visibility='hidden'"
+            onerror="this.onerror=null;this.src='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';"
           />
         </td>
         <td>{{ part.name.replace(' [Ready]', '') }}</td>
@@ -154,7 +154,7 @@
             src="{{ url_for('static', filename='images/parts/' + part_images[part.name]) }}"
             alt="{{ part.name }}"
             style="width:28px;height:28px;object-fit:contain;background:var(--bg-elevated);border-radius:3px"
-            onerror="this.style.visibility='hidden'"
+            onerror="this.onerror=null;this.src='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';"
           />
         </td>
         <td>{{ part.name }}</td>

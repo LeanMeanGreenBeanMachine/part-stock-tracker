@@ -40,6 +40,7 @@
         </td>
         <td class="d-none d-sm-table-cell" style="color:var(--text-muted);font-size:0.8rem">{{ log.note or '—' }}</td>
         <td style="text-align:right;padding-right:0.75rem">
+          {% if log.change_type in ('add', 'subtract') %}
           <form method="POST"
                 action="{{ url_for('strike_inventory_log', log_id=log.id) }}"
                 style="margin:0;display:inline"
@@ -48,6 +49,7 @@
               <i class="bi bi-x-circle"></i><span class="d-none d-sm-inline"> Strike</span>
             </button>
           </form>
+          {% endif %}
         </td>
       </tr>
       {% endfor %}

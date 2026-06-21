@@ -133,7 +133,7 @@ function fetchContent(url) {
   const content = document.getElementById('content');
   content.style.opacity = '0.4';
 
-  fetch(url, { credentials: 'same-origin' })
+  fetch(url, { credentials: 'same-origin', cache: 'no-store' })
     .then(r => {
       if (r.status === 401 || r.redirected) { location.href = '/login'; return null; }
       return r.text();

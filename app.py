@@ -24,6 +24,13 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-CHANGE-IN-PRODUCTION')
 
+
+@app.after_request
+def no_cache(response):
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    return response
+
 _db_url = os.environ.get('DATABASE_URL', 'sqlite:///stock.db')
 # Render's Postgres URLs start with postgres://, but SQLAlchemy needs postgresql://
 if _db_url.startswith('postgres://'):
@@ -896,19 +903,18 @@ def strike_inventory_log(log_id):
     office_id = log.office_id
     part_name = log.part_name
 
+    if log.change_type not in ('add', 'subtract'):
+        flash('Only manual add/subtract entries can be struck. Use Product History to reverse order logs.', 'warning')
+        return redirect(url_for('dashboard', office_id=office_id, section='inventory_history'))
+
     try:
         part = Part.query.filter_by(name=part_name).first()
         if part:
             inv = _get_or_create_inv(office_id, part.id)
-            if log.change_type in ('add', 'order_strike'):
+            if log.change_type == 'add':
                 inv.quantity = max(0.0, inv.quantity - log.amount)
-            elif log.change_type in ('subtract', 'order_log'):
+            else:
                 inv.quantity += log.amount
-            elif log.change_type == 'transfer':
-                if log.note and 'Transfer to' in log.note:
-                    inv.quantity += log.amount
-                else:
-                    inv.quantity = max(0.0, inv.quantity - log.amount)
         db.session.delete(log)
         db.session.commit()
         flash(f'Log entry removed and inventory adjusted for "{part_name}".', 'success')
