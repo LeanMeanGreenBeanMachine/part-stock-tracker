@@ -136,7 +136,7 @@
               style="margin-top:0.75rem">
           <input type="hidden" name="office_id"  value="{{ office.id }}" />
           <input type="hidden" name="contact_id" value="{{ contact.id }}" />
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.35rem 1.25rem;margin-bottom:0.6rem">
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:0.35rem 1.25rem;margin-bottom:0.6rem">
             {% for part in parts %}
             {% set pt_val = part_thresholds_map.get(contact.id, {}).get(part.id, 0) %}
             <div style="display:flex;align-items:center;gap:0.4rem">

@@ -346,6 +346,11 @@ a:hover { color: var(--neon-dim); }
   box-shadow: 0 0 0 2px var(--neon-glow);
 }
 .form-control-dark::placeholder { color: var(--text-muted); }
+#adjAmount::-webkit-inner-spin-button,
+#adjAmount::-webkit-outer-spin-button,
+#xfrAmount::-webkit-inner-spin-button,
+#xfrAmount::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+#adjAmount, #xfrAmount { -moz-appearance: textfield; text-align: center; }
 
 .form-label-dark {
   font-size: 0.78rem;

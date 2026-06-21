@@ -121,7 +121,7 @@ PRODUCTS = {
             "Audio Jacks":       1,
             "Small Shrink Tube": 1.25,
             "Large Shrink Tube": 0.25,
-            "Long Cellophane Bags": 1,
+            "Large Cellophane Bags": 1,
         },
         "contains": ["Red Wire", "Black Wire", "Mesh Wire Loom", "Solder"],
         "image": "output_jack.png",
@@ -134,8 +134,9 @@ PRODUCTS = {
             "USB Charge Boards": 1,
             "4 Pin Connectors":  1,
             "Small Shrink Tube": 0.5,
-            "Charge Box Lids":   1,
-            "Charge Boxes":      1,
+            "Charge Box Lids":      1,
+            "Charge Boxes":         1,
+            "Long Cellophane Bags": 1,
         },
         "contains": ["Blue Wire", "Yellow Wire", "Green Wire", "Black Wire", "Red Wire", "UV Resin", "Mesh Wire Loom"],
         "image": "charge_box.png",
@@ -541,6 +542,16 @@ def partial_main_menu():
     )
 
 
+def _get_part_steps():
+    """Return {part_name: smallest qty used in any BOM} for spinner step sizing."""
+    steps = {}
+    for product in PRODUCTS.values():
+        for part_name, qty in product.get('used_parts', {}).items():
+            if part_name not in steps or qty < steps[part_name]:
+                steps[part_name] = qty
+    return steps
+
+
 @app.route('/partials/update_inventory')
 @login_required
 def partial_update_inventory():
@@ -558,6 +569,7 @@ def partial_update_inventory():
         inventory_map=inventory_map,
         part_images=PART_IMAGES,
         stock_part_names=set(PRODUCT_STOCK_PARTS.values()),
+        part_steps=_get_part_steps(),
     )
 
 
@@ -874,6 +886,38 @@ def strike_log(log_id):
         flash('Strike failed. Please try again.', 'danger')
 
     return redirect(url_for('dashboard', office_id=office_id, section='product_history'))
+
+
+@app.route('/api/strike_inventory_log/<int:log_id>', methods=['POST'])
+@login_required
+def strike_inventory_log(log_id):
+    """Delete an inventory log entry and reverse its effect on stock."""
+    log = InventoryLog.query.get_or_404(log_id)
+    office_id = log.office_id
+    part_name = log.part_name
+
+    try:
+        part = Part.query.filter_by(name=part_name).first()
+        if part:
+            inv = _get_or_create_inv(office_id, part.id)
+            if log.change_type in ('add', 'order_strike'):
+                inv.quantity = max(0.0, inv.quantity - log.amount)
+            elif log.change_type in ('subtract', 'order_log'):
+                inv.quantity += log.amount
+            elif log.change_type == 'transfer':
+                if log.note and 'Transfer to' in log.note:
+                    inv.quantity += log.amount
+                else:
+                    inv.quantity = max(0.0, inv.quantity - log.amount)
+        db.session.delete(log)
+        db.session.commit()
+        flash(f'Log entry removed and inventory adjusted for "{part_name}".', 'success')
+    except Exception as exc:
+        db.session.rollback()
+        app.logger.error('strike_inventory_log failed: %s', exc)
+        flash('Strike failed. Please try again.', 'danger')
+
+    return redirect(url_for('dashboard', office_id=office_id, section='inventory_history'))
 
 
 @app.route('/api/save_settings', methods=['POST'])

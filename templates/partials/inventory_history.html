@@ -20,7 +20,8 @@
         <th>Type</th>
         <th>Amount</th>
         <th>After</th>
-        <th>Note</th>
+        <th class="d-none d-sm-table-cell">Note</th>
+        <th style="text-align:right;padding-right:1rem"></th>
       </tr>
     </thead>
     <tbody>
@@ -37,7 +38,17 @@
         <td style="color:var(--text-secondary)">
           {% if log.resulting_quantity is not none %}{{ fmt(log.resulting_quantity) }}{% else %}—{% endif %}
         </td>
-        <td style="color:var(--text-muted);font-size:0.8rem">{{ log.note or '—' }}</td>
+        <td class="d-none d-sm-table-cell" style="color:var(--text-muted);font-size:0.8rem">{{ log.note or '—' }}</td>
+        <td style="text-align:right;padding-right:0.75rem">
+          <form method="POST"
+                action="{{ url_for('strike_inventory_log', log_id=log.id) }}"
+                style="margin:0;display:inline"
+                onsubmit="return confirm('Remove this log entry and reverse the inventory change?')">
+            <button type="submit" class="btn-danger-subtle" style="font-size:0.76rem">
+              <i class="bi bi-x-circle"></i><span class="d-none d-sm-inline"> Strike</span>
+            </button>
+          </form>
+        </td>
       </tr>
       {% endfor %}
     </tbody>

@@ -15,9 +15,15 @@
         </div>
         <div class="modal-body-dark">
           <label class="form-label-dark" for="adjAmount">Amount</label>
-          <input type="number" name="amount" id="adjAmount"
-                 class="form-control-dark" min="0.01" step="0.01"
-                 placeholder="e.g. 10" required autofocus />
+          <div style="display:flex;align-items:center;gap:0.4rem">
+            <button type="button" class="btn-outline-subtle" onclick="stepAdj(-1)"
+                    style="flex-shrink:0;padding:0.25rem 0.7rem;font-size:1.1rem;line-height:1">−</button>
+            <input type="number" name="amount" id="adjAmount"
+                   class="form-control-dark" min="1" step="1"
+                   placeholder="0" required autofocus />
+            <button type="button" class="btn-neon" onclick="stepAdj(1)"
+                    style="flex-shrink:0;padding:0.25rem 0.7rem;font-size:1.1rem;line-height:1">+</button>
+          </div>
           <label class="form-label-dark mt-3" for="adjNote">Note (optional)</label>
           <input type="text" name="note" id="adjNote"
                  class="form-control-dark" placeholder="Reason or source…" />
@@ -48,9 +54,15 @@
         <div class="modal-body-dark">
           <div class="mb-2" style="font-size:0.82rem;color:var(--text-secondary)" id="xfrPartLabel"></div>
           <label class="form-label-dark" for="xfrAmount">Amount to transfer</label>
-          <input type="number" name="amount" id="xfrAmount"
-                 class="form-control-dark" min="0.01" step="0.01"
-                 placeholder="e.g. 5" required />
+          <div style="display:flex;align-items:center;gap:0.4rem">
+            <button type="button" class="btn-outline-subtle" onclick="stepXfr(-1)"
+                    style="flex-shrink:0;padding:0.25rem 0.7rem;font-size:1.1rem;line-height:1">−</button>
+            <input type="number" name="amount" id="xfrAmount"
+                   class="form-control-dark" min="1" step="1"
+                   placeholder="0" required />
+            <button type="button" class="btn-neon" onclick="stepXfr(1)"
+                    style="flex-shrink:0;padding:0.25rem 0.7rem;font-size:1.1rem;line-height:1">+</button>
+          </div>
         </div>
         <div class="modal-footer-dark d-flex justify-content-end gap-2">
           <button type="button" class="btn-outline-subtle" data-bs-dismiss="modal">Cancel</button>
@@ -175,11 +187,39 @@
 const adjModal = new bootstrap.Modal(document.getElementById('adjModal'));
 const xfrModal = new bootstrap.Modal(document.getElementById('xfrModal'));
 
+const PART_STEPS = {{ part_steps | tojson }};
+
+function getStep(partName) {
+  if (partName.includes('[Ready]')) return 1;
+  return PART_STEPS[partName] || 1;
+}
+
+function stepAdj(dir) {
+  const input = document.getElementById('adjAmount');
+  const step  = parseFloat(input.step) || 1;
+  const cur   = parseFloat(input.value) || 0;
+  const max   = input.max ? parseFloat(input.max) : Infinity;
+  input.value = Math.min(max, Math.max(step, parseFloat((cur + dir * step).toFixed(6))));
+}
+
+function stepXfr(dir) {
+  const input = document.getElementById('xfrAmount');
+  const step  = parseFloat(input.step) || 1;
+  const cur   = parseFloat(input.value) || 0;
+  const max   = input.max ? parseFloat(input.max) : Infinity;
+  input.value = Math.min(max, Math.max(step, parseFloat((cur + dir * step).toFixed(6))));
+}
+
 function openAdj(partName, action, currentQty) {
+  const step = getStep(partName);
   document.getElementById('adjPartName').value = partName;
   document.getElementById('adjAction').value   = action;
-  document.getElementById('adjAmount').value   = '';
   document.getElementById('adjNote').value     = '';
+
+  const amountInput = document.getElementById('adjAmount');
+  amountInput.step  = step;
+  amountInput.min   = step;
+  amountInput.value = '';
 
   const isAdd = action === 'add';
   const displayName = partName.replace(' [Ready]', '');
@@ -188,25 +228,28 @@ function openAdj(partName, action, currentQty) {
   document.getElementById('adjSubmitBtn').textContent =
     isAdd ? 'Add Stock' : 'Remove Stock';
 
-  const amountInput = document.getElementById('adjAmount');
   if (!isAdd) {
-    amountInput.max = currentQty;
+    amountInput.max         = currentQty;
     amountInput.placeholder = `Max: ${currentQty}`;
   } else {
     amountInput.removeAttribute('max');
-    amountInput.placeholder = 'e.g. 10';
+    amountInput.placeholder = '0';
   }
   adjModal.show();
-  setTimeout(() => document.getElementById('adjAmount').focus(), 400);
+  setTimeout(() => amountInput.focus(), 400);
 }
 
 function openXfr(partName, currentQty) {
+  const step = getStep(partName);
   const displayName = partName.replace(' [Ready]', '');
-  document.getElementById('xfrPartName').value  = partName;
-  document.getElementById('xfrAmount').value    = '';
+  const xfrInput = document.getElementById('xfrAmount');
+  xfrInput.step  = step;
+  xfrInput.min   = step;
+  xfrInput.value = '';
+  xfrInput.max   = currentQty;
+  document.getElementById('xfrPartName').value = partName;
   document.getElementById('xfrPartLabel').textContent = `${displayName} — ${currentQty} in stock`;
-  document.getElementById('xfrAmount').max = currentQty;
   xfrModal.show();
-  setTimeout(() => document.getElementById('xfrAmount').focus(), 400);
+  setTimeout(() => xfrInput.focus(), 400);
 }
 </script>
