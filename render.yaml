@@ -8,9 +8,7 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        fromDatabase:
-          name: vulcan-stock-db
-          property: connectionString
+        sync: false          # Set manually in Render dashboard from your Neon/Supabase connection string
       - key: CHECK_TOKEN
         generateValue: true
       - key: FLASK_DEBUG
@@ -20,9 +18,3 @@ services:
       - key: SMTP_PORT
         value: "587"
       # Set SMTP_USER, SMTP_PASS, SMTP_FROM manually in the Render dashboard
-
-databases:
-  - name: vulcan-stock-db
-    databaseName: vulcan_stock
-    user: vulcan
-    plan: free

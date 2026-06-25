@@ -1,0 +1,8 @@
+stock.db
+*.db
+*.sqlite
+__pycache__/
+*.pyc
+.env
+venv/
+.venv/
