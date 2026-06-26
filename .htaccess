@@ -1,0 +1,10 @@
+Options -Indexes
+RewriteEngine On
+
+# Serve existing files and directories directly (static assets)
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Route everything else through index.php
+RewriteRule ^ index.php [QSA,L]
